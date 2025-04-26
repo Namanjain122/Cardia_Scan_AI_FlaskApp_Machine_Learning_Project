@@ -5,31 +5,33 @@ import pymysql
 
 app = Flask(__name__)
 
-
 # Load the trained decision tree model
 decision_tree = joblib.load("decision3.pkl")
 
 def insert_into_db(data):
-    conn = pymysql.connect(
-        host='localhost',
-        user='root',
-        password='Naman@1q2w',
-        database='heart_db',
-        cursorclass=pymysql.cursors.Cursor  # optional, default is fine too
-    )
-    cursor = conn.cursor()
-    cursor.execute('''
-        INSERT INTO heart_data (
-            age, gender, height, weight, ap_hi, ap_lo,
-            cholesterol, gluc, smoke, alco, active,
-            country, occupation
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-    ''', data)
-    conn.commit()
-    cursor.close()
-    conn.close()
+    try:
+        conn = pymysql.connect(
+            host='localhost', 
+            user='root',
+            password='Naman@1q2w',
+            database='heart_db',
+            cursorclass=pymysql.cursors.Cursor 
+        )
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO heart_data (
+                age, gender, height, weight, ap_hi, ap_lo,
+                cholesterol, gluc, smoke, alco, active,
+                country, occupation
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        ''', data)
+        conn.commit()
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"Database error: {e}")  # Just print error for now
 
-# Define the categories for encodmiing
+# Define the categories for encoding
 countries = ['Indonesia', 'Malaysia', 'Singapore', 'India']
 occupations = ['Architect', 'Accountant', 'Chef', 'Lawyer', 'Teacher', 'Nurse', 'Engineer', 'Doctor', 'Others']
 
@@ -63,16 +65,18 @@ def home():
             # Convert gender input (1 = Female, 2 = Male) to (0 = Female, 1 = Male)
             gender = 0 if gender == 1 else 1
 
-            # Prepare input data
+            # Prepare input data for model
             user_data = np.array([[age, gender, height, weight, ap_hi, ap_lo, cholesterol, gluc,
                                    smoke, alco, active, country_encoded, occupation_encoded]])
-            
+
+            # Prepare data for database (if needed in future)
             data = (
                 age, gender, height, weight, ap_hi, ap_lo,
                 cholesterol, gluc, smoke, alco, active,
                 country, occupation
             )
-            insert_into_db(data)
+
+            # insert_into_db(data)  # <-- Commented out to avoid crashing
 
             # Make prediction
             prediction = decision_tree.predict(user_data)
@@ -84,6 +88,9 @@ def home():
 
         except ValueError:
             return render_template("index.html", prediction="Invalid input! Please enter valid numeric values.")
+        except Exception as e:
+            print(f"Error occurred: {e}")
+            return render_template("index.html", prediction="Something went wrong. Please try again.")
 
     return render_template("index.html", prediction=None)
 
